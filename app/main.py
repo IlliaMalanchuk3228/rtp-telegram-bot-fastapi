@@ -3,7 +3,6 @@ from telegram import Update
 from fastapi import FastAPI, Request, Response
 from app.bot import create_bot, settings
 from app.database import database, engine, Base
-from app.models import User
 
 app = FastAPI()
 bot = create_bot()

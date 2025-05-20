@@ -1,30 +1,24 @@
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 from app.database import database
+from app.languages import LANGUAGES
+from app.spaces_client import list_today_slots, load_play_url
 from sqlalchemy.dialects.postgresql import insert
+from datetime import date
+from .config import settings
 from .models import User
-from pydantic import BaseSettings
 
-
-class Settings(BaseSettings):
-    TELEGRAM_TOKEN: str
-    WEBHOOK_URL: str
-
-    class Config:
-        env_file = ".env"
-
-
-settings = Settings()
-
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-def create_bot():
-    application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
-    application.add_handler(CommandHandler('start', start))
-    return application
+# In-memory cache for Telegram file_ids
+FILE_ID_CACHE: dict[str, str] = {}
 
 
 async def register_user(user_data):
@@ -36,6 +30,90 @@ async def register_user(user_data):
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("DEBUG: /start command triggered for user:", update.effective_user)
-    await register_user(update.effective_user)
-    await update.message.reply_text("You've been subscribed successfully!")
+    user = update.effective_user
+    await register_user(user)
+    # Build language selection buttons
+    keyboard = [
+        [InlineKeyboardButton(lang, callback_data=f"lang|{lang}")]
+        for lang in LANGUAGES.keys()
+    ]
+    text = LANGUAGES['TR']['welcome'].format(first_name=user.first_name)
+    await update.message.reply_markdown(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    _, lang = query.data.split("|", 1)
+    context.user_data['lang'] = lang
+    tpl = LANGUAGES[lang]
+
+    # compute today once
+    today = date.today().strftime("%d.%m.%Y")
+
+    # format the header
+    header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
+
+    # List today’s slot files from Spaces
+    slot_items = list_today_slots(lang)
+    if not slot_items:
+        await query.edit_message_text("Üzgünüm, bugün için slotlar mevcut değil.")
+        return
+
+    # Build slot buttons
+    keyboard = [
+        [InlineKeyboardButton(item['name'], callback_data=f"slot|{item['name']}")]
+        for item in slot_items
+    ]
+
+    await query.edit_message_text(
+        text=header_text,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    slot_name = query.data.split("|", 1)[1]
+    lang = context.user_data.get('lang', 'TR')
+
+    # Re-list today’s slots and find the selected one
+    slots = list_today_slots(lang)
+    slot = next((s for s in slots if s['name'] == slot_name), None)
+    if not slot:
+        await query.message.reply_text("Bu slot bulunamadı.")
+        return
+
+    # fetch the one, shared play-url
+    play_url = load_play_url()
+
+    # button with that URL
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("▶️ Try on website", url=play_url)
+    ]])
+
+    msg = await query.message.reply_photo(
+        photo=slot["image"],
+        caption=f"*{slot_name}*",
+        parse_mode="Markdown",
+        reply_markup=kb,
+        disable_web_page_preview=True
+    )
+
+    # cache Telegram file_id as before
+    url = slot["image"]
+    if url not in FILE_ID_CACHE:
+        FILE_ID_CACHE[url] = msg.photo[-1].file_id
+
+
+def create_bot():
+    application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CallbackQueryHandler(choose_language, pattern=r'^lang\|'))
+    application.add_handler(CallbackQueryHandler(choose_slot, pattern=r'^slot\|'))
+    return application
