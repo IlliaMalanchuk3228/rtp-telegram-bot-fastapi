@@ -33,6 +33,11 @@ async def shutdown():
     await database.disconnect()
 
 
+@app.get("/")
+async def health() -> dict:
+    return {"status": "ok"}
+
+
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     update_json = await request.json()
