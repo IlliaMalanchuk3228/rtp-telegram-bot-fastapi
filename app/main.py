@@ -13,10 +13,6 @@ async def startup():
     # Connect database
     await database.connect()
 
-    # Create tables automatically on startup in a thread (prevents blocking async loop)
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, Base.metadata.create_all, engine)
-
     # Initialize bot and set webhook
     await bot.initialize()
     await bot.bot.set_webhook(url=settings.WEBHOOK_URL)
