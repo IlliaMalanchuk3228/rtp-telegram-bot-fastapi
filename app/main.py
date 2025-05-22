@@ -2,7 +2,9 @@ import asyncio
 from telegram import Update
 from fastapi import FastAPI, Request, Response
 from app.bot import create_bot, settings
-from app.database import database, engine, Base
+from app.database import database
+from alembic.config import Config
+from alembic import command
 
 app = FastAPI()
 bot = create_bot()
@@ -12,6 +14,15 @@ bot = create_bot()
 async def startup():
     # Connect database
     await database.connect()
+
+    # 2) run Alembic migrations at runtime (inside the VPC)
+    def _migrate():
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", ""))
+        command.upgrade(cfg, "head")
+
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _migrate)
 
     # Initialize bot and set webhook
     await bot.initialize()
