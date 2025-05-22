@@ -2,6 +2,7 @@ from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
+    DATABASE_URL: str
     TELEGRAM_TOKEN: str
     WEBHOOK_URL: str
 
