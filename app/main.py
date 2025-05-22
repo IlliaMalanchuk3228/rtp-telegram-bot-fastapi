@@ -15,15 +15,6 @@ async def startup():
     # Connect database
     await database.connect()
 
-    # 2) run Alembic migrations at runtime (inside the VPC)
-    def _migrate():
-        cfg = Config("alembic.ini")
-        cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", ""))
-        command.upgrade(cfg, "head")
-
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _migrate)
-
     # Initialize bot and set webhook
     await bot.initialize()
     await bot.bot.set_webhook(url=settings.WEBHOOK_URL)
@@ -40,9 +31,9 @@ async def shutdown():
     await database.disconnect()
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def health() -> dict:
-    return {"status": "ok"}
+    return {"ok": True}
 
 
 @app.post("/webhook")
