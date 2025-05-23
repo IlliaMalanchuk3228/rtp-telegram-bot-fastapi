@@ -15,6 +15,14 @@ async def startup():
     # Connect database
     await database.connect()
 
+    # 2) run migrations
+    alembic_cfg = Config("alembic.ini")
+    # if your DATABASE_URL is postgresql+asyncpg://… you need to strip +asyncpg
+    url = settings.DATABASE_URL.replace("+asyncpg", "")
+    alembic_cfg.set_main_option("sqlalchemy.url", url)
+    # now actually upgrade
+    command.upgrade(alembic_cfg, "head")
+
     # Initialize bot and set webhook
     await bot.initialize()
     await bot.bot.set_webhook(url=settings.WEBHOOK_URL)
