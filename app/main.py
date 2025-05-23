@@ -31,6 +31,12 @@ async def shutdown():
     await database.disconnect()
 
 
+@app.get("/webhook", include_in_schema=False)
+async def webhook_health() -> Response:
+    # Just return 200 so DO’s GET probe passes
+    return Response(status_code=200)
+
+
 @app.get("/", include_in_schema=False)
 async def health() -> dict:
     return {"ok": True}
