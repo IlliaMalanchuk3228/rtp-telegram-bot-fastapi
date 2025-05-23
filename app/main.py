@@ -5,6 +5,8 @@ from app.bot import create_bot, settings
 from app.database import database
 from alembic.config import Config
 from alembic import command
+from .database import engine, metadata
+
 
 app = FastAPI()
 bot = create_bot()
@@ -15,13 +17,9 @@ async def startup():
     # Connect database
     await database.connect()
 
-    # 2) run migrations
-    alembic_cfg = Config("alembic.ini")
-    # if your DATABASE_URL is postgresql+asyncpg://… you need to strip +asyncpg
-    url = settings.DATABASE_URL.replace("+asyncpg", "")
-    alembic_cfg.set_main_option("sqlalchemy.url", url)
-    # now actually upgrade
-    command.upgrade(alembic_cfg, "head")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, metadata.create_all, engine)
+    await database.connect()
 
     # Initialize bot and set webhook
     await bot.initialize()
