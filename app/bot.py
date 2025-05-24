@@ -101,8 +101,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo=slot["image"],
         caption=f"*{slot_name}*",
         parse_mode="Markdown",
-        reply_markup=kb,
-        disable_web_page_preview=True
+        reply_markup=kb
     )
 
     # cache Telegram file_id as before
