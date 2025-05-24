@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-database = Database(settings.DATABASE_URL)
+database = Database(settings.DATABASE_URL, min_size=1, max_size=3)
 engine = create_engine(settings.DATABASE_URL.replace("+asyncpg", ""), echo=True)
 
 Base = declarative_base()
