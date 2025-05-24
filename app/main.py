@@ -3,10 +3,6 @@ from telegram import Update
 from fastapi import FastAPI, Request, Response
 from app.bot import create_bot, settings
 from app.database import database
-from alembic.config import Config
-from alembic import command
-from .database import engine, metadata
-
 
 app = FastAPI()
 bot = create_bot()
@@ -15,10 +11,6 @@ bot = create_bot()
 @app.on_event("startup")
 async def startup():
     # Connect database
-    await database.connect()
-
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, metadata.create_all, engine)
     await database.connect()
 
     # Initialize bot and set webhook
