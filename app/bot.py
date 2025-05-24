@@ -142,12 +142,18 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for item in slot_items
     ]
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
-    await query.edit_message_text(
+
+    # **Send a new message with slots**
+    await query.message.reply_text(
         text=header_text,
         parse_mode='Markdown',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+    try:
+        await query.message.delete()
+    except Exception as e:
+        pass  # If can't delete, just ignore
 
 def create_bot():
     application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
