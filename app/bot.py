@@ -53,7 +53,6 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # compute today once
     today = date.today().strftime("%d.%m.%Y")
-
     # format the header
     header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
 
@@ -69,9 +68,28 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for item in slot_items
     ]
 
+    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
+
     await query.edit_message_text(
         text=header_text,
         parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Simulate /start again, but use the CallbackQuery
+    query = update.callback_query
+    await query.answer()
+    user = update.effective_user
+    keyboard = [
+        [InlineKeyboardButton(lang, callback_data=f"lang|{lang}")]
+        for lang in LANGUAGES.keys()
+    ]
+    text = LANGUAGES['TR']['welcome'].format(first_name=user.first_name)
+    await query.edit_message_text(
+        text=text,
+        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -94,7 +112,8 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # button with that URL
     kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("▶️ Try on website", url=play_url)
+        InlineKeyboardButton("▶️ Try on website", url=play_url),
+        InlineKeyboardButton("⬅️ Back to slots", callback_data="back_to_slots")
     ]])
 
     msg = await query.message.reply_photo(
@@ -110,9 +129,31 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         FILE_ID_CACHE[url] = msg.photo[-1].file_id
 
 
+async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    lang = context.user_data.get('lang', 'TR')
+    tpl = LANGUAGES[lang]
+    today = date.today().strftime("%d.%m.%Y")
+    header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
+    slot_items = list_today_slots(lang)
+    keyboard = [
+        [InlineKeyboardButton(item['name'], callback_data=f"slot|{item['name']}")]
+        for item in slot_items
+    ]
+    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
+    await query.edit_message_text(
+        text=header_text,
+        parse_mode='Markdown',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 def create_bot():
     application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CallbackQueryHandler(choose_language, pattern=r'^lang\|'))
     application.add_handler(CallbackQueryHandler(choose_slot, pattern=r'^slot\|'))
+    application.add_handler(CallbackQueryHandler(back_to_language, pattern=r'^back_to_language$'))
+    application.add_handler(CallbackQueryHandler(back_to_slots, pattern=r'^back_to_slots$'))
     return application
