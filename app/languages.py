@@ -9,18 +9,8 @@ def today_str() -> str:
 
 
 LANGUAGES = {
-    "TR": {
-        "welcome": (
-            "👋 *Hoşgeldiniz, {first_name}!*\n\n"
-            "Abone olduğunuz için teşekkürler.\n\n"
-            "Lütfen dilinizi seçin:"
-        ),
-        "top_slots": "🎰 *Bugünün En İyi Slotları* – {today}",
-        "description": "Aşağıdan bugünün en popüler slotlarını seçin ve hemen oynayın!",
-        "pick_prompt": "Bir slot seçin:",
-        "check_in": "📲 Oyna",
-    },
-    "AZ": {
+    "AZERBAIDJANI": {
+        "flag": "🇦🇿",
         "welcome": (
             "👋 *Xoş gəlmisiniz, {first_name}!*\n\n"
             "Abunə olduğunuz üçün təşəkkür edirəm.\n\n"
@@ -31,7 +21,8 @@ LANGUAGES = {
         "pick_prompt": "Slot seçin:",
         "check_in": "📲 Oyna",
     },
-    "TJ": {
+    "UZBEK": {
+        "flag": "🇺🇿",
         "welcome": (
             "👋 *Хуш омадед, {first_name}!*\n\n"
             "Ба обуна шуданатон ташаккур.\n\n"

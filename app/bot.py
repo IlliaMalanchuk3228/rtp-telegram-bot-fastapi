@@ -34,10 +34,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await register_user(user)
     # Build language selection buttons
     keyboard = [
-        [InlineKeyboardButton(lang, callback_data=f"lang|{lang}")]
+        [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
         for lang in LANGUAGES.keys()
     ]
-    text = LANGUAGES['TR']['welcome'].format(first_name=user.first_name)
+    text = LANGUAGES['AZERBAIDJANI']['welcome'].format(first_name=user.first_name)
     await update.message.reply_markdown(
         text,
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -83,10 +83,10 @@ async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user = update.effective_user
     keyboard = [
-        [InlineKeyboardButton(lang, callback_data=f"lang|{lang}")]
+        [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
         for lang in LANGUAGES.keys()
     ]
-    text = LANGUAGES['TR']['welcome'].format(first_name=user.first_name)
+    text = LANGUAGES['AZERBAIDJANI']['welcome'].format(first_name=user.first_name)
     await query.edit_message_text(
         text=text,
         parse_mode="Markdown",
@@ -98,7 +98,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     slot_name = query.data.split("|", 1)[1]
-    lang = context.user_data.get('lang', 'TR')
+    lang = context.user_data.get('lang', 'AZERBAIDJANI')
 
     # Re-list today’s slots and find the selected one
     slots = list_today_slots(lang)
@@ -132,7 +132,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    lang = context.user_data.get('lang', 'TR')
+    lang = context.user_data.get('lang', 'AZERBAIDJANI')
     tpl = LANGUAGES[lang]
     today = date.today().strftime("%d.%m.%Y")
     header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
