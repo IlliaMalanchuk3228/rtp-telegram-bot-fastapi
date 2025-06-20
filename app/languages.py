@@ -9,19 +9,21 @@ def today_str() -> str:
 
 
 LANGUAGES = {
-    "AZERBAIDJANI": {
+    "AZ": {
         "flag": "🇦🇿",
         "welcome": (
             "👋 *Xoş gəlmisiniz, {first_name}!*\n\n"
             "Abunə olduğunuz üçün təşəkkür edirəm.\n\n"
-            "Xahiş edirəm dili seçin:"
+            "Xahiş edirəm dili seç:"
         ),
-        "top_slots": "🎰 *Bu Günün Ən Yaxşı Slotları* – {today}",
-        "description": "Aşağıdan bu günün ən sevilən slotlarını seçin və dərhal oynayın!",
-        "pick_prompt": "Slot seçin:",
-        "check_in": "📲 Oyna",
+        "top_slots": "🎰 *Bu Günün Ən Yüksək RTP Slotları* – {today}",
+        "description": "Aşağıdan bu günün ən sevilən slot seç və oyna!",
+        "pick_prompt": "Slot seç:",
+        "check_in": "📲 Oynamaq üçün bas",
+        "no_slots": "Üzr istəyirəm, bu gün üçün slotlar yoxdur.",
+        "slot_not_found":  "Üzr istəyirəm, bu slot tapılmadı."
     },
-    "UZBEK": {
+    "UZ": {
         "flag": "🇺🇿",
         "welcome": (
             "👋 *Хуш омадед, {first_name}!*\n\n"
@@ -32,5 +34,7 @@ LANGUAGES = {
         "description": "Аз зери тугмаҳо беҳтарин слотҳои имрӯзро интихоб кунед ва фавран бозӣ кунед!",
         "pick_prompt": "Слотро интихоб кунед:",
         "check_in": "📲 Бозӣ кунед",
+        "no_slots": "Kechirasiz, bugun uchun bo‘sh joylar mavjud emas.",
+        "slot_not_found":  "Kechirasiz, bu slot topilmadi."
     },
 }

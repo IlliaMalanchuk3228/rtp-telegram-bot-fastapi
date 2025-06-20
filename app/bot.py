@@ -7,7 +7,7 @@ from telegram import (
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 from app.database import database
 from app.languages import LANGUAGES
-from app.spaces_client import list_today_slots, load_play_url
+from app.spaces_client import list_today_slots, load_play_url, load_slot_metadata
 from sqlalchemy.dialects.postgresql import insert
 from datetime import date
 from .config import settings
@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
         for lang in LANGUAGES.keys()
     ]
-    text = LANGUAGES['AZERBAIDJANI']['welcome'].format(first_name=user.first_name)
+    text = LANGUAGES['AZ']['welcome'].format(first_name=user.first_name)
     await update.message.reply_markdown(
         text,
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -59,7 +59,11 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # List today’s slot files from Spaces
     slot_items = list_today_slots(lang)
     if not slot_items:
-        await query.edit_message_text("Üzgünüm, bugün için slotlar mevcut değil.")
+        tpl = LANGUAGES[lang]
+        await query.edit_message_text(
+            tpl["no_slots"],
+            parse_mode="Markdown"
+        )
         return
 
     # Build slot buttons
@@ -86,7 +90,7 @@ async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
         for lang in LANGUAGES.keys()
     ]
-    text = LANGUAGES['AZERBAIDJANI']['welcome'].format(first_name=user.first_name)
+    text = LANGUAGES['AZ']['welcome'].format(first_name=user.first_name)
     await query.edit_message_text(
         text=text,
         parse_mode="Markdown",
@@ -97,33 +101,48 @@ async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    slot_name = query.data.split("|", 1)[1]
-    lang = context.user_data.get('lang', 'AZERBAIDJANI')
 
-    # Re-list today’s slots and find the selected one
+    slot_name = query.data.split("|", 1)[1]
+    lang = context.user_data.get('lang', 'AZ')
+    tpl = LANGUAGES[lang]
+
+    # 1) Load today’s images
     slots = list_today_slots(lang)
     slot = next((s for s in slots if s['name'] == slot_name), None)
     if not slot:
-        await query.message.reply_text("Bu slot bulunamadı.")
-        return
+        return await query.message.reply_text(
+            tpl["slot_not_found"], parse_mode="Markdown"
+        )
 
-    # fetch the one, shared play-url
-    play_url = load_play_url()
+    # 2) Load your metadata manifest
+    metadata_map = load_slot_metadata(lang)
+    meta = metadata_map.get(slot_name, {})
 
-    # button with that URL
-    kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("▶️ Try on website", url=play_url),
-        InlineKeyboardButton("⬅️ Back to slots", callback_data="back_to_slots")
-    ]])
-
-    msg = await query.message.reply_photo(
-        photo=slot["image"],
-        caption=f"*{slot_name}*",
-        parse_mode="Markdown",
-        reply_markup=kb
+    # 3) Build a caption using that metadata
+    caption = (
+        f"*{slot_name}*\n"
+        f"└ 🎰 Provayder: {meta.get('provider', '—')}\n"
+        f"⚡️ Ani RTP: %{meta.get('instant_rtp', '—')}\n"
+        f"Həftəlik RTP: %{meta.get('weekly_rtp', '—')}\n"
+        f"-Əsas RTP: %{meta.get('base_rtp', '—')}"
     )
 
-    # cache Telegram file_id as before
+    # 4) Your existing “try on website” button
+    play_url = load_play_url()  # however you load that
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("▶️ Try on website", url=play_url),
+        InlineKeyboardButton("⬅️ Back", callback_data="back_to_slots")
+    ]])
+
+    # 5) Finally send the photo + caption + buttons
+    msg = await query.message.reply_photo(
+        photo=slot["image"],
+        caption=caption,
+        parse_mode="Markdown",
+        reply_markup=kb,
+    )
+
+    # 6) Your file_id cache logic
     url = slot["image"]
     if url not in FILE_ID_CACHE:
         FILE_ID_CACHE[url] = msg.photo[-1].file_id
@@ -132,7 +151,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    lang = context.user_data.get('lang', 'AZERBAIDJANI')
+    lang = context.user_data.get('lang', 'AZ')
     tpl = LANGUAGES[lang]
     today = date.today().strftime("%d.%m.%Y")
     header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]

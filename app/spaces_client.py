@@ -3,6 +3,8 @@ import boto3
 from botocore.client import Config
 from datetime import date, timedelta
 from app.config import settings
+import json
+from botocore.exceptions import ClientError
 
 _session = boto3.session.Session()
 _s3 = _session.client(
@@ -15,6 +17,20 @@ _s3 = _session.client(
 )
 
 _PLAY_URL_CACHE: str = None
+
+
+def load_slot_metadata(lang: str) -> dict[str, dict]:
+    """
+    Fetches <lang>/metadata.json from Spaces and returns
+    a mapping slot_name -> its metadata dict.
+    """
+    key = f"{lang}/metadata.json"
+    try:
+        resp = _s3.get_object(Bucket=settings.SPACES_NAME, Key=key)
+    except ClientError:
+        return {}
+    body = resp["Body"].read()
+    return json.loads(body)
 
 
 def load_play_url() -> str:
