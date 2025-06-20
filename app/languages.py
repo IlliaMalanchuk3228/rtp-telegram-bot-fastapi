@@ -20,6 +20,7 @@ LANGUAGES = {
         "description": "Aşağıdan bu günün ən sevilən slot seç və oyna!",
         "pick_prompt": "Slot seç:",
         "check_in": "📲 Oynamaq üçün bas",
+        "back_slots": "⬅️ Slotlara qayıtın",
         "no_slots": "Üzr istəyirəm, bu gün üçün slotlar yoxdur.",
         "slot_not_found":  "Üzr istəyirəm, bu slot tapılmadı."
     },
@@ -33,7 +34,8 @@ LANGUAGES = {
         "top_slots": "🎰 *Беҳтарин Слотҳои Имрӯз* – {today}",
         "description": "Аз зери тугмаҳо беҳтарин слотҳои имрӯзро интихоб кунед ва фавран бозӣ кунед!",
         "pick_prompt": "Слотро интихоб кунед:",
-        "check_in": "📲 Бозӣ кунед",
+        "check_in": "📲 Saytda o‘ynang",
+        "back_slots": "⬅️ Slotlarga qayting",
         "no_slots": "Kechirasiz, bugun uchun bo‘sh joylar mavjud emas.",
         "slot_not_found":  "Kechirasiz, bu slot topilmadi."
     },

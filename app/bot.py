@@ -130,8 +130,8 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 4) Your existing “try on website” button
     play_url = load_play_url()  # however you load that
     kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("▶️ Try on website", url=play_url),
-        InlineKeyboardButton("⬅️ Back", callback_data="back_to_slots")
+        InlineKeyboardButton(tpl["check_in"], url=play_url),
+        InlineKeyboardButton(tpl["back_slots"], callback_data="back_to_slots")
     ]])
 
     # 5) Finally send the photo + caption + buttons
