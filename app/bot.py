@@ -121,7 +121,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 3) Build a caption using that metadata
     caption = (
         f"*{slot_name}*\n"
-        f"└ 🎰 Provayder: {meta.get('provider', '—')}%\n"
+        f"└ 🎰 Provayder: {meta.get('provider', '—')}\n"
         f"⚡️ Ani RTP: {meta.get('instant_rtp', '—')}%\n"
         f"Həftəlik RTP: {meta.get('weekly_rtp', '—')}%\n"
         f"-Əsas RTP: {meta.get('base_rtp', '—')}%"

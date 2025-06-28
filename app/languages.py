@@ -20,7 +20,7 @@ LANGUAGES = {
         "description": "Aşağıdan bu günün ən sevilən slot seç və oyna!",
         "pick_prompt": "Slot seç:",
         "check_in": "📲 Oynamaq üçün bas",
-        "back_slots": "⬅️ Slotlara qayıtın",
+        "back_slots": "⬅️ Slotlara qayıtmaq",
         "no_slots": "Üzr istəyirəm, bu gün üçün slotlar yoxdur.",
         "slot_not_found":  "Üzr istəyirəm, bu slot tapılmadı."
     },
