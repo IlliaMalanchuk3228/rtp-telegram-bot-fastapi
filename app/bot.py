@@ -122,7 +122,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = (
         f"*{slot_name}*\n"
         f"└🎮 Sağlayıcı: {meta.get('provider', '—')}\n"
-        f"-Əsas RTP: %{meta.get('base_rtp', '—')}"
+        f"-Əsas RTP: %{meta.get('base_rtp', '—')}\n"
         f"⚡️ Cari RTP: %{meta.get('instant_rtp', '—')}\n"
         f"Həftəlik RTP: %{meta.get('weekly_rtp', '—')}\n"
     )
