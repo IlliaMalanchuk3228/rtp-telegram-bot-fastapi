@@ -134,10 +134,10 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 5) get its metadata fields
     meta = metadata_map.get(slot_name, {})
     caption = (
-        f"{prefix} *{slot_name}*\n"
+        f"{slot_name}\n"
         f"└🎮 Sağlayıcı: {meta.get('provider', '—')}\n"
-        f"-Əsas RTP: {meta.get('base_rtp', '—')}%\n"
-        f"⚡️ Cari RTP: *{meta.get('instant_rtp', '—')}%\n"
+        f"- Əsas RTP: {meta.get('base_rtp', '—')}%\n"
+        f"⚡️ Cari RTP: <b>{meta.get('instant_rtp', '—')}%</b>\n"
         f"Həftəlik RTP: {meta.get('weekly_rtp', '—')}%"
     )
 
@@ -151,7 +151,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await query.message.reply_photo(
         photo=slot["image"],
         caption=caption,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=kb,
     )
 
