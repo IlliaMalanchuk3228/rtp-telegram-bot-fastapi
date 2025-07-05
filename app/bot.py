@@ -71,11 +71,18 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not slot_items:
         return await query.edit_message_text(tpl["no_slots"], parse_mode="Markdown")
 
-    # 4) build buttons in that order
-    keyboard = [
-        [InlineKeyboardButton(item["name"], callback_data=f"slot|{item['name']}")]
-        for item in slot_items
-    ]
+    medals = ["🥇", "🥈", "🥉"]
+    keyboard: list[list[InlineKeyboardButton]] = []
+
+    for idx, slot in enumerate(slot_items):
+        # pick a medal or fall back to “4.”, “5.”, etc.
+        prefix = medals[idx] if idx < 3 else f"{idx + 1}."
+        label = f"{prefix} {slot['name']}"
+        keyboard.append(
+            [InlineKeyboardButton(label, callback_data=f"slot|{slot['name']}")]
+        )
+
+    # finally add your “Back” button
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
     await query.edit_message_text(
@@ -188,19 +195,20 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 3) rebuild the buttons in the exact order from your metadata.json
     raw_slots = list_today_slots(lang)
     meta_map = load_slot_metadata(lang)
-    ordered_names = [name for name in meta_map.keys() if any(s["name"] == name for s in raw_slots)]
+    ordered_names = [name for name in meta_map.keys() if name in slot_map]
 
-    keyboard = [
-        [InlineKeyboardButton(name, callback_data=f"slot|{name}")]
-        for name in ordered_names
-    ]
-    # append your “Back → Language” button
+    medals = ["🥇", "🥈", "🥉"]
+    keyboard = []
+    for idx, name in enumerate(ordered_names):
+        prefix = medals[idx] if idx < 3 else f"{idx + 1}."
+        label = f"{prefix} {name}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=f"slot|{name}")])
+
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
-    # 4) send a fresh text menu
     await query.message.reply_markdown(
         header,
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
