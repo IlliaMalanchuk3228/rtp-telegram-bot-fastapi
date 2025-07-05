@@ -86,18 +86,21 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Simulate /start again, but use the CallbackQuery
     query = update.callback_query
     await query.answer()
+
+    # delete the photo message
+    await query.message.delete()
+
+    # send your language‐picker as fresh text
     user = update.effective_user
     keyboard = [
         [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
-        for lang in LANGUAGES.keys()
+        for lang in LANGUAGES
     ]
     text = LANGUAGES['AZ']['welcome'].format(first_name=user.first_name)
-    await query.edit_message_text(
+    await query.message.reply_markdown(
         text=text,
-        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
