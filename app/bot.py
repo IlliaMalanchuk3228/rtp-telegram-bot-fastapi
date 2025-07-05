@@ -164,28 +164,33 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
     lang = context.user_data.get('lang', 'AZ')
     tpl = LANGUAGES[lang]
     today = date.today().strftime("%d.%m.%Y")
     header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
-    slot_items = list_today_slots(lang)
+
+    # 1) get the “flat” slots
+    raw_slots = list_today_slots(lang)
+    slot_map = {s["name"]: s for s in raw_slots}
+
+    # 2) load your metadata.json (keys are in the order you declared them)
+    metadata_map = load_slot_metadata(lang)
+    ordered_names = [name for name in metadata_map.keys() if name in slot_map]
+
+    # 3) now build buttons in that exact sequence
     keyboard = [
-        [InlineKeyboardButton(item['name'], callback_data=f"slot|{item['name']}")]
-        for item in slot_items
+        [InlineKeyboardButton(name, callback_data=f"slot|{name}")]
+        for name in ordered_names
     ]
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
-    # **Send a new message with slots**
-    await query.message.reply_text(
+    # 4) edit the existing message (or reply if you prefer)
+    await query.edit_message_text(
         text=header_text,
-        parse_mode='Markdown',
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
-
-    try:
-        await query.message.delete()
-    except Exception as e:
-        pass  # If can't delete, just ignore
 
 
 def create_bot():
