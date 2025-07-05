@@ -47,37 +47,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    # 1) pull lang & template
     _, lang = query.data.split("|", 1)
     context.user_data['lang'] = lang
     tpl = LANGUAGES[lang]
 
-    # compute today once
+    # 2) build your header
     today = date.today().strftime("%d.%m.%Y")
-    # format the header
     header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
 
-    # List today’s slot files from Spaces
-    slot_items = list_today_slots(lang)
-    if not slot_items:
-        tpl = LANGUAGES[lang]
-        await query.edit_message_text(
-            tpl["no_slots"],
-            parse_mode="Markdown"
-        )
-        return
+    # 3) raw slots + metadata ordering
+    raw_slots = list_today_slots(lang)
+    metadata_map = load_slot_metadata(lang)
 
-    # Build slot buttons
+    # preserve only those that exist in raw_slots, in metadata.json order:
+    ordered_slots = [
+        next((s for s in raw_slots if s["name"] == name), None)
+        for name in metadata_map.keys()
+    ]
+    slot_items = [s for s in ordered_slots if s]
+
+    if not slot_items:
+        return await query.edit_message_text(tpl["no_slots"], parse_mode="Markdown")
+
+    # 4) build buttons in that order
     keyboard = [
-        [InlineKeyboardButton(item['name'], callback_data=f"slot|{item['name']}")]
+        [InlineKeyboardButton(item["name"], callback_data=f"slot|{item['name']}")]
         for item in slot_items
     ]
-
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
     await query.edit_message_text(
         text=header_text,
-        parse_mode='Markdown',
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
@@ -102,39 +106,48 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    slot_name = query.data.split("|", 1)[1]
-    lang = context.user_data.get('lang', 'AZ')
+    lang = context.user_data.get("lang", "AZ")
     tpl = LANGUAGES[lang]
 
-    # 1) Load today’s images
-    slots = list_today_slots(lang)
-    slot = next((s for s in slots if s['name'] == slot_name), None)
-    if not slot:
-        return await query.message.reply_text(
-            tpl["slot_not_found"], parse_mode="Markdown"
-        )
-
-    # 2) Load your metadata manifest
+    # 1) re-load slots & metadata map
+    raw_slots = list_today_slots(lang)
     metadata_map = load_slot_metadata(lang)
-    meta = metadata_map.get(slot_name, {})
 
-    # 3) Build a caption using that metadata
+    # 2) re-derive the same ordered list
+    ordered = [
+        next((s for s in raw_slots if s["name"] == name), None)
+        for name in metadata_map.keys()
+    ]
+    slots = [s for s in ordered if s]
+
+    # 3) pick the one the user tapped
+    slot_name = query.data.split("|", 1)[1]
+    slot = next((s for s in slots if s["name"] == slot_name), None)
+    if not slot:
+        return await query.message.reply_text(tpl["slot_not_found"], parse_mode="Markdown")
+
+    # 4) find its position & medal
+    pos = [s["name"] for s in slots].index(slot_name)
+    medals = ["🥇", "🥈", "🥉"]
+    prefix = medals[pos] if pos < 3 else f"{pos + 1}."
+
+    # 5) get its metadata fields
+    meta = metadata_map.get(slot_name, {})
     caption = (
-        f"*{slot_name}*\n"
+        f"{prefix} *{slot_name}*\n"
         f"└🎮 Sağlayıcı: {meta.get('provider', '—')}\n"
         f"-Əsas RTP: %{meta.get('base_rtp', '—')}\n"
         f"⚡️ Cari RTP: %{meta.get('instant_rtp', '—')}\n"
-        f"Həftəlik RTP: %{meta.get('weekly_rtp', '—')}\n"
+        f"Həftəlik RTP: %{meta.get('weekly_rtp', '—')}"
     )
 
-    # 4) Your existing “try on website” button
-    play_url = load_play_url()  # however you load that
+    # 6) buttons & send
+    play_url = load_play_url()
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton(tpl["check_in"], url=play_url),
-        InlineKeyboardButton(tpl["back_slots"], callback_data="back_to_slots")
+        InlineKeyboardButton(tpl["back_slots"], callback_data="back_to_slots"),
     ]])
 
-    # 5) Finally send the photo + caption + buttons
     msg = await query.message.reply_photo(
         photo=slot["image"],
         caption=caption,
@@ -142,7 +155,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb,
     )
 
-    # 6) Your file_id cache logic
+    # 7) cache file_id as before
     url = slot["image"]
     if url not in FILE_ID_CACHE:
         FILE_ID_CACHE[url] = msg.photo[-1].file_id
@@ -173,6 +186,7 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.delete()
     except Exception as e:
         pass  # If can't delete, just ignore
+
 
 def create_bot():
     application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
