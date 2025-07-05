@@ -89,18 +89,23 @@ async def back_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # delete the photo message
-    await query.message.delete()
+    # 1) delete the photo (or whatever message) you’re standing on
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
 
-    # send your language‐picker as fresh text
+    # 2) rebuild your language-picker menu exactly like in /start
     user = update.effective_user
     keyboard = [
         [InlineKeyboardButton(f"{LANGUAGES[lang]['flag']} {lang}", callback_data=f"lang|{lang}")]
         for lang in LANGUAGES
     ]
     text = LANGUAGES['AZ']['welcome'].format(first_name=user.first_name)
+
+    # 3) send a new text message with that keyboard
     await query.message.reply_markdown(
-        text=text,
+        text,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -168,31 +173,34 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # 1) delete the existing message (whether it was a photo or text)
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+
+    # 2) re‐compute your header
     lang = context.user_data.get('lang', 'AZ')
     tpl = LANGUAGES[lang]
     today = date.today().strftime("%d.%m.%Y")
-    header_text = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
+    header = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
 
-    # 1) get the “flat” slots
+    # 3) rebuild the buttons in the exact order from your metadata.json
     raw_slots = list_today_slots(lang)
-    slot_map = {s["name"]: s for s in raw_slots}
+    meta_map = load_slot_metadata(lang)
+    ordered_names = [name for name in meta_map.keys() if any(s["name"] == name for s in raw_slots)]
 
-    # 2) load your metadata.json (keys are in the order you declared them)
-    metadata_map = load_slot_metadata(lang)
-    ordered_names = [name for name in metadata_map.keys() if name in slot_map]
-
-    # 3) now build buttons in that exact sequence
     keyboard = [
         [InlineKeyboardButton(name, callback_data=f"slot|{name}")]
         for name in ordered_names
     ]
+    # append your “Back → Language” button
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
-    # 4) edit the existing message (or reply if you prefer)
-    await query.edit_message_text(
-        text=header_text,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+    # 4) send a fresh text menu
+    await query.message.reply_markdown(
+        header,
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
