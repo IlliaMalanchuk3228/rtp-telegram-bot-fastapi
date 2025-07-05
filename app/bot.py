@@ -180,32 +180,37 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # 1) delete the existing message (whether it was a photo or text)
+    # 1) delete the existing message
     try:
         await query.message.delete()
-    except Exception:
+    except:
         pass
 
-    # 2) re‐compute your header
+    # 2) re‐compute header
     lang = context.user_data.get('lang', 'AZ')
     tpl = LANGUAGES[lang]
     today = date.today().strftime("%d.%m.%Y")
     header = tpl["top_slots"].format(today=today) + "\n\n" + tpl["description"]
 
-    # 3) rebuild the buttons in the exact order from your metadata.json
+    # 3) load the raw slots and build a name→slot map
     raw_slots = list_today_slots(lang)
+    slot_map = {s["name"]: s for s in raw_slots}
+
+    # 4) load your metadata.json keys in order, but only those actually present
     meta_map = load_slot_metadata(lang)
     ordered_names = [name for name in meta_map.keys() if name in slot_map]
 
+    # 5) build medalled buttons
     medals = ["🥇", "🥈", "🥉"]
     keyboard = []
     for idx, name in enumerate(ordered_names):
         prefix = medals[idx] if idx < 3 else f"{idx + 1}."
-        label = f"{prefix} {name}"
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"slot|{name}")])
+        keyboard.append([InlineKeyboardButton(f"{prefix} {name}", callback_data=f"slot|{name}")])
 
+    # 6) append back-to-language
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="back_to_language")])
 
+    # 7) send fresh menu
     await query.message.reply_markdown(
         header,
         reply_markup=InlineKeyboardMarkup(keyboard),
