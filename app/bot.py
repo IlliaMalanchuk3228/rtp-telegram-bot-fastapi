@@ -142,7 +142,7 @@ async def choose_slot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 5) get its metadata fields
     meta = metadata_map.get(slot_name, {})
     caption = (
-        f"{slot_name}\n"
+        f"{prefix} <b>{slot_name}</b>\n"
         f"└🎮 Sağlayıcı: {meta.get('provider', '—')}\n"
         f"- Əsas RTP: {meta.get('base_rtp', '—')}%\n"
         f"⚡️ Cari RTP: <b>{meta.get('instant_rtp', '—')}%</b>\n"
