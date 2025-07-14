@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     SPACES_REGION: str
     SPACES_NAME: str
 
+    ADMIN = [495956176, 2083712739]
+
     class Config:
         env_file = ".env"
 

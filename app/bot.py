@@ -1,10 +1,12 @@
+import asyncio
 import logging
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.error import RetryAfter
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from app.database import database
 from app.languages import LANGUAGES
 from app.spaces_client import list_today_slots, load_play_url, load_slot_metadata
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # In-memory cache for Telegram file_ids
 FILE_ID_CACHE: dict[str, str] = {}
+BROADCAST_STATE = {}
 
 
 async def register_user(user_data):
@@ -69,7 +72,13 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     slot_items = [s for s in ordered_slots if s]
 
     if not slot_items:
-        return await query.edit_message_text(tpl["no_slots"], parse_mode="Markdown")
+        try:
+            await query.edit_message_text(tpl["no_slots"], parse_mode="Markdown")
+        except Exception as e:
+            if "Message is not modified" in str(e):
+                pass
+            else:
+                raise
 
     medals = ["🥇", "🥈", "🥉"]
     keyboard: list[list[InlineKeyboardButton]] = []
@@ -217,6 +226,125 @@ async def back_to_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def bcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    await query.answer()
+    if user_id not in settings.ADMIN:
+        return await query.edit_message_text("❌ Only admin can broadcast.")
+    # Type selected
+    if query.data.startswith("bcast_type|"):
+        btype = query.data.split("|")[1]
+        BROADCAST_STATE[user_id] = {"type": btype}
+        await query.edit_message_text(f"Send the {'message' if btype == 'text' else btype} (text/photo/video/gif).")
+        return
+    # Confirm or cancel
+    if query.data == "bcast_confirm":
+        await query.edit_message_text("Broadcast started...")
+        await do_broadcast(user_id, context)
+        BROADCAST_STATE.pop(user_id, None)
+        return
+    if query.data == "bcast_cancel":
+        BROADCAST_STATE.pop(user_id, None)
+        return await query.edit_message_text("Broadcast cancelled.")
+
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in settings.ADMIN:
+        return await update.message.reply_text("❌ Only admin can broadcast.")
+    keyboard = [
+        [InlineKeyboardButton("Text", callback_data="bcast_type|text"),
+         InlineKeyboardButton("Photo", callback_data="bcast_type|photo"),
+         InlineKeyboardButton("Video", callback_data="bcast_type|video"),
+         InlineKeyboardButton("GIF", callback_data="bcast_type|animation")]
+    ]
+    await update.message.reply_text("What type of broadcast?", reply_markup=InlineKeyboardMarkup(keyboard))
+    BROADCAST_STATE[user_id] = {}
+
+
+async def bcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in settings.ADMIN or user_id not in BROADCAST_STATE:
+        return
+    bcast = BROADCAST_STATE[user_id]
+    btype = bcast.get("type")
+    preview_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Send", callback_data="bcast_confirm"),
+         InlineKeyboardButton("❌ Cancel", callback_data="bcast_cancel")]
+    ])
+    # Buttons for the broadcasted message
+    btns = [
+        [InlineKeyboardButton("🎮 Oynadığım sayt", url="https://toptdspup.com/ECaXmztG/")],
+        [InlineKeyboardButton("🎰 Slot Analiz botu", url=f"https://t.me/{context.bot.username}")]
+    ]
+    broadcast_markup = InlineKeyboardMarkup(btns)
+    if btype == "text" and update.message.text:
+        text = update.message.text
+        bcast.update({"text": text, "reply_markup": broadcast_markup})
+        await update.message.reply_text(
+            f"**Preview:**\n{text}",
+            reply_markup=preview_markup,
+            parse_mode="Markdown"
+        )
+    elif btype == "photo" and update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        caption = update.message.caption or ""
+        bcast.update({"file_id": file_id, "caption": caption, "reply_markup": broadcast_markup})
+        await update.message.reply_photo(
+            photo=file_id,
+            caption=f"Preview:\n{caption}",
+            reply_markup=preview_markup
+        )
+    elif btype == "video" and update.message.video:
+        file_id = update.message.video.file_id
+        caption = update.message.caption or ""
+        bcast.update({"file_id": file_id, "caption": caption, "reply_markup": broadcast_markup})
+        await update.message.reply_video(
+            video=file_id,
+            caption=f"Preview:\n{caption}",
+            reply_markup=preview_markup
+        )
+    elif btype == "animation" and update.message.animation:
+        file_id = update.message.animation.file_id
+        caption = update.message.caption or ""
+        bcast.update({"file_id": file_id, "caption": caption, "reply_markup": broadcast_markup})
+        await update.message.reply_animation(
+            animation=file_id,
+            caption=f"Preview:\n{caption}",
+            reply_markup=preview_markup
+        )
+    else:
+        await update.message.reply_text("Please send the correct type of content.")
+
+
+async def do_broadcast(user_id, context):
+    bcast = BROADCAST_STATE.get(user_id)
+    if not bcast:
+        return
+    rows = await database.fetch_all("SELECT chat_id FROM users")
+    chat_ids = [r["chat_id"] for r in rows if r["chat_id"] not in settings.ADMIN]
+    sent = 0
+    markup = bcast.get("reply_markup")
+    for chat_id in chat_ids:
+        try:
+            if bcast["type"] == "text":
+                await context.bot.send_message(chat_id, text=bcast["text"], reply_markup=markup)
+            elif bcast["type"] == "photo":
+                await context.bot.send_photo(chat_id, photo=bcast["file_id"], caption=bcast["caption"], reply_markup=markup)
+            elif bcast["type"] == "video":
+                await context.bot.send_video(chat_id, video=bcast["file_id"], caption=bcast["caption"], reply_markup=markup)
+            elif bcast["type"] == "animation":
+                await context.bot.send_animation(chat_id, animation=bcast["file_id"], caption=bcast["caption"], reply_markup=markup)
+            sent += 1
+            await asyncio.sleep(0.04)  # 25/sec, safe for telegram
+        except RetryAfter as e:
+            await asyncio.sleep(e.retry_after + 1)
+        except Exception as e:
+            continue
+    await context.bot.send_message(user_id, f"Broadcast sent to {sent} users.")
+
+
 def create_bot():
     application = ApplicationBuilder().token(settings.TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler('start', start))
@@ -224,4 +352,8 @@ def create_bot():
     application.add_handler(CallbackQueryHandler(choose_slot, pattern=r'^slot\|'))
     application.add_handler(CallbackQueryHandler(back_to_language, pattern=r'^back_to_language$'))
     application.add_handler(CallbackQueryHandler(back_to_slots, pattern=r'^back_to_slots$'))
+    # BROADCAST
+    application.add_handler(CommandHandler('broadcast', broadcast))
+    application.add_handler(CallbackQueryHandler(bcast_callback, pattern=r'^bcast_'))
+    application.add_handler(MessageHandler(filters.ALL, bcast_message))
     return application
